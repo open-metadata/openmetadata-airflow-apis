@@ -1,0 +1,7 @@
+from airflow import DAG
+from openmetadata.workflows import workflow_factory
+
+workflow = workflow_factory.WorkflowFactory.create("{{ workflow_config_file }}")
+workflow.clean_dags(globals())
+workflow.generate_dags(globals())
+dag = workflow.get_dag("{{ dag_id }}")
