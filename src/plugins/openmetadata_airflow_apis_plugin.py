@@ -27,9 +27,7 @@ from flask_appbuilder import expose as app_builder_expose, BaseView as AppBuilde
 from flask_jwt_extended.view_decorators import jwt_required, verify_jwt_in_request
 from jinja2 import Template
 
-"""Location of the REST Endpoint
-Note: Changing this will only effect where the messages are posted to on the web interface
-and will not change where the endpoint actually resides"""
+
 rest_api_endpoint = "/admin/rest_api/api"
 
 # Getting Versions and Global variables
@@ -262,55 +260,6 @@ class REST_API(get_baseview()):
     def get_argument(request, arg):
         return request.args.get(arg) or request.form.get(arg)
 
-    # '/' Endpoint where the Admin page is which allows you to view the APIs available and trigger them
-    if rbac_authentication_enabled:
-        @app_builder_expose('/')
-        def list(self):
-            logging.info("REST_API.list() called")
-
-            # get the information that we want to display on the page regarding the dags that are available
-            dagbag = self.get_dagbag()
-            dags = []
-            for dag_id in dagbag.dags:
-                orm_dag = DagModel.get_current(dag_id)
-                dags.append({
-                    "dag_id": dag_id,
-                    "is_active": (not orm_dag.is_paused) if orm_dag is not None else False
-                })
-
-            return self.render_template("/rest_api_plugin/index.html",
-                                        dags=dags,
-                                        airflow_webserver_base_url=airflow_webserver_base_url,
-                                        rest_api_endpoint=rest_api_endpoint,
-                                        apis_metadata=apis_metadata,
-                                        airflow_version=airflow_version,
-                                        rest_api_plugin_version=rest_api_plugin_version,
-                                        rbac_authentication_enabled=rbac_authentication_enabled
-                                        )
-    else:
-        @admin_expose('/')
-        def index(self):
-            logging.info("REST_API.index() called")
-
-            # get the information that we want to display on the page regarding the dags that are available
-            dagbag = self.get_dagbag()
-            dags = []
-            for dag_id in dagbag.dags:
-                orm_dag = DagModel.get_current(dag_id)
-                dags.append({
-                    "dag_id": dag_id,
-                    "is_active": (not orm_dag.is_paused) if orm_dag is not None else False
-                })
-
-            return self.render("rest_api_plugin/index.html",
-                               dags=dags,
-                               airflow_webserver_base_url=airflow_webserver_base_url,
-                               rest_api_endpoint=rest_api_endpoint,
-                               apis_metadata=apis_metadata,
-                               airflow_version=airflow_version,
-                               rest_api_plugin_version=rest_api_plugin_version,
-                               rbac_authentication_enabled=rbac_authentication_enabled
-                               )
 
     # '/api' REST Endpoint where API requests should all come in
     @csrf.exempt  # Exempt the CSRF token
@@ -334,7 +283,7 @@ class REST_API(get_baseview()):
             if test_api_metadata["name"] == api:
                 api_metadata = test_api_metadata
         if api_metadata is None:
-            logging.info("api '" + str(api) + "' was not found in the apis list in the REST API Plugin")
+            logging.info("api '" + str(api) + "' not supported")
             return ApiResponse.bad_request("API '" + str(api) + "' was not found")
 
         # check if all the required arguments are provided
@@ -387,13 +336,11 @@ class REST_API(get_baseview()):
         """Custom Function for the deploy_dag API
         Creates workflow dag based on workflow dag file and refreshes
         the session
-
         args:
             workflow_config: the workflow config that defines the dag
         """
 
         logging.info("Executing custom 'deploy_dag' function")
-        logging.info("requests {}".format(request.get_json()))
         request_json = request.get_json()['workflow']
         dag_name = request_json['name']
         if dag_name is None:

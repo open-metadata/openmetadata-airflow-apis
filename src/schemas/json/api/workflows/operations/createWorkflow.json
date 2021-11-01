@@ -1,0 +1,127 @@
+{
+  "$id": "https://open-metadata.org/schema/api/data/createWorkflow.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Create Workflow",
+  "description": "Create Workflow Entity Request",
+  "type": "object",
+  "definitions": {
+    "task": {
+      "type": "object",
+      "javaType": "org.openmetadata.catalog.type.Task",
+      "properties": {
+        "name": {
+          "description": "Name that identifies this task instance uniquely.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "operator": {
+          "description": "Python classname of the operator used in this Task.",
+          "type": "string"
+        },
+        "dependencies": {
+          "description": "All the tasks that are downstream of this task.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "config": {
+          "description": "Task Config.",
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+                {"type": "string"},
+                {"type": "number"}
+              ]
+            }
+          }
+        },
+      "required": [
+        "name",
+        "operator"
+      ]
+    }
+  },
+  "properties" : {
+    "name": {
+      "description": "Name that identifies this workflow instance uniquely.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "forceDeploy": {
+      "description": "Deploy the workflow by overwriting existing workflow with the same name.",
+      "type": "boolean",
+      "default": "false"
+    },
+    "pauseWorkflow": {
+      "description": "pause the workflow from running once the deploy is finished succesfully.",
+      "type": "boolean",
+      "default": "false"
+    },
+    "description": {
+      "description": "Description of the workflow.",
+      "type": "string"
+    },
+    "concurrency": {
+      "description": "Concurrency of the Pipeline.",
+      "type": "integer",
+      "default": 1
+    },
+    "startDate": {
+      "description": "Start date of the workflow",
+      "$ref": "../type/basic.json#/definitions/dateTime"
+    },
+    "endDate": {
+      "description": "End Date of the workflow",
+      "$ref": "../type/basic.json#/definitions/dateTime"
+    },
+    "retries": {
+      "description": "Retry workflow in case of failure",
+      "type": "integer",
+      "default": 1
+    },
+    "retryDelay": {
+      "description": "Delay between retries in seconds.",
+      "type": "integer",
+      "default": 300
+    },
+    "scheduleInterval": {
+      "description": "Scheduler Interval for the Workflow in cron format.",
+      "type": "string"
+    },
+    "maxActiveRuns": {
+      "description": "Maximum Number of active runs.",
+      "type": "integer",
+      "default": 1
+    },
+    "workflowTimeout": {
+      "description": "Timeout for the workflow in seconds.",
+      "type": "integer",
+      "default": 60
+    },
+    "workflowDefaultView": {
+      "description": "Default view in Airflow.",
+      "type": "string",
+      "default": "LR"
+    },
+    "tasks": {
+      "description": "All the tasks that are part of pipeline.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/task"
+      },
+      "default": null
+    },
+    "owner": {
+      "description": "Owner of this database",
+      "type": "string"
+    },
+    "email": {
+      "description": "Email to notify workflow status.",
+      "$ref": "../type/basic.json#/definitions/email"
+    }
+  },
+  "required": ["name", "owner", "tasks", "startDate"]
+}
