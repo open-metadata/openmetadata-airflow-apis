@@ -80,7 +80,9 @@ class WorkflowBuilder:
         dag_params["max_active_runs"] = self.dag_config.maxActiveRuns
         dag_params["default_view"] = self.dag_config.workflowDefaultView
         dag_params["orientation"] = self.dag_config.workflowDefaultViewOrientation
+        dag_params["managed_operators_dir"] = self.dag_config.pythonOperatorLocation
         dag_params["default_args"] = {}
+
         if self.dag_config.scheduleInterval is None:
             dag_params["schedule_interval"] = None
         else:
@@ -139,13 +141,13 @@ class WorkflowBuilder:
         if self.dag_config.onSuccessCallbackName and self.dag_config.onSuccessCallbackFile:
             dag_params["on_success_callback"]: Callable = workflow_utils.get_python_callable(
                 self.dag_config.onSuccessCallbackName,
-                self.dag_config.onSuccessCallbackFile,
+                f'{dag_params["managed_operators_dir"]}/{self.dag_config.onSuccessCallbackFile}',
             )
 
         if self.dag_config.onFailureCallbackName and self.dag_config.onFailureCallbackFile:
             dag_params["on_failure_callback"]: Callable = workflow_utils.get_python_callable(
                 self.dag_config.onFailureCallbackName,
-                self.dag_config.onFailureCallbackFile,
+                f'{dag_params["managed_operators_dir"]}/{self.dag_config.onFailureCallbackFile}',
             )
 
         try:
@@ -160,7 +162,7 @@ class WorkflowBuilder:
     # pylint: disable=too-many-branches
     # pylint: disable=too-many-statements
     @staticmethod
-    def make_task(operator: str, task_params: Dict[str, Any]) -> BaseOperator:
+    def make_task(operator: str, task_params: Dict[str, Any], dag_params: Dict[str, Any]) -> BaseOperator:
         """
         Takes an operator and params and creates an instance of that operator.
         :returns: instance of operator object
@@ -179,9 +181,10 @@ class WorkflowBuilder:
                         "Failed to create task. PythonOperator and BranchPythonOperator requires \
                         `python_callable_name` and `python_callable_file` parameters."
                     )
+                logger.info(f'python callable {dag_params["managed_operators_dir"]}/{task_params["python_callable_file"]}')
                 task_params["python_callable"]: Callable = workflow_utils.get_python_callable(
                     task_params["python_callable_name"],
-                    task_params["python_callable_file"],
+                    f'{dag_params["managed_operators_dir"]}/{task_params["python_callable_file"]}',
                 )
                 # remove dag-factory specific parameters
                 # Airflow 2.0 doesn't allow these to be passed to operator
@@ -200,7 +203,7 @@ class WorkflowBuilder:
                 ):
                     task_params["success"]: Callable = workflow_utils.get_python_callable(
                         task_params["success_check_name"],
-                        task_params["success_check_file"],
+                        f'{dag_params["managed_operators_dir"]}/{task_params["success_check_file"]}',
                     )
                     del task_params["success_check_name"]
                     del task_params["success_check_file"]
@@ -215,7 +218,7 @@ class WorkflowBuilder:
                 ):
                     task_params["failure"]: Callable = workflow_utils.get_python_callable(
                         task_params["failure_check_name"],
-                        task_params["failure_check_file"],
+                        f'{dag_params["managed_operators_dir"]}/{task_params["failure_check_file"]}'
                     )
                     del task_params["failure_check_name"]
                     del task_params["failure_check_file"]
@@ -238,7 +241,7 @@ class WorkflowBuilder:
                 if task_params.get("response_check_file"):
                     task_params["response_check"]: Callable = workflow_utils.get_python_callable(
                         task_params["response_check_name"],
-                        task_params["response_check_file"],
+                        f'{dag_params["managed_operators_dir"]}/{task_params["response_check_file"]}'
                     )
                     # remove dag-factory specific parameters
                     # Airflow 2.0 doesn't allow these to be passed to operator
@@ -319,7 +322,7 @@ class WorkflowBuilder:
             ) and workflow_utils.check_dict_key(task_params, "execution_date_fn_file"):
                 task_params["execution_date_fn"]: Callable = workflow_utils.get_python_callable(
                     task_params["execution_date_fn_name"],
-                    task_params["execution_date_fn_file"],
+                    f'{dag_params["managed_operators_dir"]}/{task_params["execution_date_fn_file"]}',
                 )
                 del task_params["execution_date_fn_name"]
                 del task_params["execution_date_fn_file"]
@@ -487,7 +490,6 @@ class WorkflowBuilder:
         if version.parse(AIRFLOW_VERSION) >= version.parse("1.10.8"):
             dag.tags = dag_params.get("tags", None)
 
-
         task_groups_dict: Dict[str, "TaskGroup"] = self.make_task_groups(
             dag_params.get("task_groups", {}), dag
         )
@@ -511,13 +513,13 @@ class WorkflowBuilder:
             params["dag"]: DAG = dag
             logger.info(params)
             task: BaseOperator = WorkflowBuilder.make_task(
-                operator=operator, task_params=params
+                operator=operator, task_params=params, dag_params=dag_params
             )
             tasks_dict[task.task_id]: BaseOperator = task
 
         # set task dependencies after creating tasks
-        #self.set_dependencies(
-         #   self.dag_config.tasks, tasks_dict, dag_params.get("task_groups", {}), task_groups_dict
-        #)
+        # self.set_dependencies(
+        #   self.dag_config.tasks, tasks_dict, dag_params.get("task_groups", {}), task_groups_dict
+        # )
 
         return dag

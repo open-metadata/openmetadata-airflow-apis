@@ -1,5 +1,5 @@
 {
-"name": "test_ingestion_x_44",
+"name": "om_metadata_es_ingest_test_2",
 "forceDeploy": "true",
 "pauseWorkflow": "false",
 "description": "this is an example dag!",
@@ -20,7 +20,7 @@
 		"operator": "airflow.operators.python_operator.PythonOperator",
 		"config": {
 			"python_callable_name": "metadata_ingestion_workflow",
-			"python_callable_file": "/Users/harsha/Code/airflow/managed_dags/metadata_ingestion.py",
+			"python_callable_file": "metadata_ingestion.py",
 			"op_kwargs": {
 				"workflow_config": {
 					"metadata_server": {
