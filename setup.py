@@ -22,15 +22,13 @@ def get_long_description():
 
 
 base_requirements = {
-   "apache-airflow[http,kubernetes]>=1.10.2"
-    "apache-airflow>=1.10.2"
-    "PyYAML~=6.0"
-    "pendulum~=2.1.2"
-    "kubernetes~=19.15.0"
-    "packaging~=21.2"
-    "setuptools~=58.3.0"
-    "apache-airflow>=1.10.2"
-    "Flask~=1.1.4"
+    "PyYAML~=6.0",
+    "pendulum~=2.1.2",
+    "packaging~=21.2",
+    "setuptools~=58.3.0",
+    "apache-airflow[http,kubernetes]>=1.10.2",
+    "Flask~=1.1.4",
+    "pydantic>=1.7.4",
 }
 
 dev_requirements = {

@@ -1,8 +1,8 @@
 {
   "$id": "https://open-metadata.org/schema/api/data/createWorkflow.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Create Workflow",
-  "description": "Create Workflow Entity Request",
+  "title": "WorkflowConfig",
+  "description": "WorkflowConfig Entity",
   "type": "object",
   "definitions": {
     "task": {
@@ -32,7 +32,8 @@
           "additionalProperties": {
             "anyOf": [
                 {"type": "string"},
-                {"type": "number"}
+                {"type": "number"},
+                {"type":  "object"}
               ]
             }
           }
@@ -71,11 +72,16 @@
     },
     "startDate": {
       "description": "Start date of the workflow",
-      "$ref": "../type/basic.json#/definitions/dateTime"
+      "type": "string"
     },
     "endDate": {
       "description": "End Date of the workflow",
-      "$ref": "../type/basic.json#/definitions/dateTime"
+      "type": "string"
+    },
+    "workflowTimezone": {
+      "description": "Timezone in which workflow going to be scheduled.",
+      "type": "string",
+      "default": "UTC"
     },
     "retries": {
       "description": "Retry workflow in case of failure",
@@ -86,6 +92,11 @@
       "description": "Delay between retries in seconds.",
       "type": "integer",
       "default": 300
+    },
+    "workflowCatchup": {
+      "description": "Workflow catchup for past executions.",
+      "type": "boolean",
+      "default": "false"
     },
     "scheduleInterval": {
       "description": "Scheduler Interval for the Workflow in cron format.",
@@ -104,7 +115,44 @@
     "workflowDefaultView": {
       "description": "Default view in Airflow.",
       "type": "string",
+      "default": "tree"
+    },
+    "workflowDefaultViewOrientation": {
+      "description": "Default view Orientation in Airflow.",
+      "type": "string",
       "default": "LR"
+    },
+    "pythonOperatorLocation": {
+      "description": "File system directory path where managed python operator files are stored.",
+      "type": "string"
+    },
+    "slaMissCallback": {
+      "description": "python method call back on SLA miss.",
+      "type": "string"
+    },
+    "onSuccessCallback": {
+      "description": "callback method on successful execution of the pipeline.",
+      "type": "string"
+    },
+    "onFailureCallback": {
+      "description": "callback method on pipeline execution failure.",
+      "type": "string"
+    },
+    "onSuccessCallbackName": {
+      "description": "python method name to call when the pipeline successfully executes.",
+      "type": "string"
+    },
+    "onSuccessCallbackFile": {
+      "description": "python file where the successful callback method is stored.",
+      "type": "string"
+    },
+    "onFailureCallbackName": {
+      "description": "python method name to call when the pipeline failed executes.",
+      "type": "string"
+    },
+    "onFailureCallbackFile": {
+      "description": "python file where the failure callback method is stored",
+      "type": "string"
     },
     "tasks": {
       "description": "All the tasks that are part of pipeline.",
