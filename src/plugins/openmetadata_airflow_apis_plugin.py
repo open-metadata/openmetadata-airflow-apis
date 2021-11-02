@@ -27,9 +27,8 @@ from flask_appbuilder import expose as app_builder_expose, BaseView as AppBuilde
 from flask_jwt_extended.view_decorators import jwt_required, verify_jwt_in_request
 from jinja2 import Template
 
-"""Location of the REST Endpoint
-Note: Changing this will only effect where the messages are posted to on the web interface
-and will not change where the endpoint actually resides"""
+from openmetadata.generated.api.workflows.operations.workflow import WorkflowConfig
+
 rest_api_endpoint = "/admin/rest_api/api"
 
 # Getting Versions and Global variables
@@ -276,7 +275,7 @@ class REST_API(get_baseview()):
                 dags.append({
                     "dag_id": dag_id,
                     "is_active": (not orm_dag.is_paused) if orm_dag is not None else False
-                })
+                    })
 
             return self.render_template("/rest_api_plugin/index.html",
                                         dags=dags,
@@ -334,7 +333,7 @@ class REST_API(get_baseview()):
             if test_api_metadata["name"] == api:
                 api_metadata = test_api_metadata
         if api_metadata is None:
-            logging.info("api '" + str(api) + "' was not found in the apis list in the REST API Plugin")
+            logging.info("api '" + str(api) + "' not supported")
             return ApiResponse.bad_request("API '" + str(api) + "' was not found")
 
         # check if all the required arguments are provided
@@ -387,33 +386,28 @@ class REST_API(get_baseview()):
         """Custom Function for the deploy_dag API
         Creates workflow dag based on workflow dag file and refreshes
         the session
-
         args:
             workflow_config: the workflow config that defines the dag
         """
 
         logging.info("Executing custom 'deploy_dag' function")
-        logging.info("requests {}".format(request.get_json()))
-        request_json = request.get_json()['workflow']
-        dag_name = request_json['name']
+        request_json = request.get_json()
+        workflow_config = WorkflowConfig(**request_json)
+        workflow_config.pythonOperatorLocation = dag_managed_operators
+        dag_name = workflow_config.name
         if dag_name is None:
             logging.warning("The workflow name config is not provided")
             return ApiResponse.bad_request("workflow name should be provided")
 
-        force = request_json['force']
+        force = workflow_config.forceDeploy
         logging.info("deploy_dag force upload: " + str(force))
 
-        pause = request_json['pause']
+        pause = workflow_config.pauseWorkflow
         logging.info("deploy_dag in pause state: " + str(pause))
 
-        unpause = request_json['unpause']
-        logging.info("deploy_dag in unpause state: " + str(unpause))
         dag_py_file = os.path.join(airflow_dags_folder, f'{dag_name}.py')
-        dag_config_file_path = None
-        # make sure that the dag_file is a python script
-        if dag_name:
-            dag_config_file_path = os.path.join(dag_generated_configs, f'{dag_name}.json')
-
+        dag_config_file_path = os.path.join(dag_generated_configs, f'{dag_name}.json')
+        logging.info(dag_config_file_path)
         # Check if the file already exists.
         if os.path.isfile(dag_config_file_path) and not force:
             logging.warning("File to upload already exists")
@@ -422,9 +416,10 @@ class REST_API(get_baseview()):
         dag_id = dag_name
         logging.info("Saving file to '" + dag_config_file_path + "'")
         with open(dag_config_file_path, 'w') as outfile:
-            json.dump(request_json['dag_config'], outfile)
-        dag_runner_config = {'workflow_config_file': dag_config_file_path,
-                             'dag_id': dag_id}
+            json.dump(workflow_config.dict(), outfile)
+
+        dag_runner_config = {'workflow_config_file': dag_config_file_path}
+
         with open(dag_runner_template, "r") as f:
             template = Template(f.read())
         dag = template.render(dag_runner_config)
@@ -435,9 +430,10 @@ class REST_API(get_baseview()):
         try:
             dag_file = import_path(dag_py_file)
         except Exception as e:
-            warning = "Failed to get dag_file"
+            warning = "Failed to import dag_file"
+            logging.error(e)
             logging.warning(warning)
-            return ApiResponse.server_error("Failed to get {}".format(dag_py_file))
+            return ApiResponse.server_error("Failed to import {}".format(dag_py_file))
 
         try:
             if dag_file is None:
@@ -462,7 +458,7 @@ class REST_API(get_baseview()):
             dag.sync_to_db(session=session)
             dag_model = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
             logging.info("dag_model:" + str(dag_model))
-            dag_model.set_is_paused(is_paused=not unpause)
+            dag_model.set_is_paused(is_paused=pause)
         except Exception as e:
             logging.info(f'Failed to serialize the dag {e}')
 
