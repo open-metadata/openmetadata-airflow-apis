@@ -13,6 +13,7 @@ from airflow import settings
 from airflow.utils.state import State
 from airflow.utils import timezone
 from airflow.exceptions import TaskNotFound
+from airflow.api.common.experimental.trigger_dag import trigger_dag
 
 from flask import Blueprint, request, jsonify, Response
 from flask_admin import BaseView as AdminBaseview, expose as admin_expose
@@ -67,6 +68,16 @@ apis_metadata = [
         "arguments": [],
         "post_arguments": [
             {"name": "workflow_config", "description": "Workflow config to deplooy", "form_input_type": "file",
+             "required": True},
+        ]
+    },
+    {
+        "name": "trigger_dag",
+        "description": "Trigger a DAG",
+        "http_method": "POST",
+        "arguments": [],
+        "post_arguments": [
+            {"name": "workflow_name", "description": "Workflow name to run",
              "required": True},
         ]
     },
@@ -361,6 +372,8 @@ class REST_API(get_baseview()):
         # Some functions are custom and need to be manually routed to.
         if api == "deploy_dag":
             final_response = self.deploy_dag()
+        elif api == 'trigger_dag':
+            final_response = self.trigger_dag()
         elif api == "refresh_all_dags":
             final_response = self.refresh_all_dags()
         elif api == "delete_dag":
@@ -466,6 +479,32 @@ class REST_API(get_baseview()):
         return ApiResponse.success({
             "message": "Workflow [{}] has been created".format(dag_name)
         })
+
+    @staticmethod
+    def trigger_dag():
+        """
+        Trigger a dag run
+        """
+        logging.info("Running run_dag method")
+        try:
+            request_json = request.get_json()
+            dag_id = request_json['workflow_name']
+            run_id = request_json['run_id'] if 'run_id' in request_json.keys() else None
+            dag_run = trigger_dag(dag_id=dag_id,
+                                  run_id=run_id,
+                                  conf=None,
+                                  execution_date=timezone.utcnow())
+            return ApiResponse.success({
+                "message": "Workflow [{}] has been triggered {}".format(dag_id, dag_run)
+            })
+        except Exception as e:
+            logging.info(f"Failed to trigger dag {dag_id}")
+            return ApiResponse.error({
+                "message": "Workflow {} has filed to trigger due to {}".format(dag_id, e)
+            })
+
+
+
 
     @staticmethod
     def refresh_all_dags():

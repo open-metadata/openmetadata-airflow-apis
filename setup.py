@@ -28,6 +28,7 @@ base_requirements = {
     "setuptools~=58.3.0",
     "apache-airflow[http,kubernetes]>=1.10.2",
     "Flask~=1.1.4",
+    "Flask-Admin",
     "pydantic>=1.7.4",
 }
 
