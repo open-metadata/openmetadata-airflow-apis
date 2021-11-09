@@ -96,6 +96,14 @@ apis_metadata = [
         ]
     },
     {
+        "name": "list_run",
+        "description": "Get a list of a dag runs",
+        "http_method": "GET",
+        "arguments": [
+            {"name": "dag_id", "description": "The id of the dag", "form_input_type": "text", "required": True}
+        ]
+    },
+    {
         "name": "dag_state",
         "description": "Get the status of a dag run",
         "http_method": "GET",
@@ -372,6 +380,8 @@ class REST_API(get_baseview()):
         # Some functions are custom and need to be manually routed to.
         if api == "deploy_dag":
             final_response = self.deploy_dag()
+        elif api == 'list_run':
+            final_response = self.list_run()
         elif api == 'trigger_dag':
             final_response = self.trigger_dag()
         elif api == "refresh_all_dags":
@@ -402,8 +412,6 @@ class REST_API(get_baseview()):
         args:
             workflow_config: the workflow config that defines the dag
         """
-
-        logging.info("Executing custom 'deploy_dag' function")
         request_json = request.get_json()
         workflow_config = WorkflowConfig(**request_json)
         workflow_config.pythonOperatorLocation = dag_managed_operators
@@ -457,6 +465,7 @@ class REST_API(get_baseview()):
             warning = "Failed to get dag from dag_file"
             logging.warning(warning)
             return ApiResponse.server_error("Failed to get dag from DAG File [{}]".format(dag_file))
+
         dag_id = dag_name
         logging.info("dag_id from file: " + dag_id)
         # Refresh dag into session
@@ -472,13 +481,14 @@ class REST_API(get_baseview()):
             dag_model = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
             logging.info("dag_model:" + str(dag_model))
             dag_model.set_is_paused(is_paused=pause)
+            return ApiResponse.success({
+                "message": "Workflow [{}] has been created".format(dag_name)
+            })
         except Exception as e:
             logging.info(f'Failed to serialize the dag {e}')
-
-
-        return ApiResponse.success({
-            "message": "Workflow [{}] has been created".format(dag_name)
-        })
+            return ApiResponse.server_error({
+                "message": "Workflow [{}] failed to deploy due to [{}]".format(dag_name, e)
+            })
 
     @staticmethod
     def trigger_dag():
@@ -502,8 +512,6 @@ class REST_API(get_baseview()):
             return ApiResponse.error({
                 "message": "Workflow {} has filed to trigger due to {}".format(dag_id, e)
             })
-
-
 
 
     @staticmethod
@@ -559,6 +567,33 @@ class REST_API(get_baseview()):
         return ApiResponse.success({
             "message": "DAG [{}] deleted".format(dag_id)
         })
+
+    def list_run(self):
+        """
+        List dag runs
+        """
+        try:
+            logging.info("Running list_run")
+            dag_id = self.get_argument(request, 'dag_id')
+            logging.info("dag_id {}".format(dag_id))
+            session = settings.Session()
+            query = session.query(DagRun)
+            dag_runs = query.filter(
+                DagRun.dag_id == dag_id
+            ).all()
+
+            if dag_runs is None:
+                return ApiResponse.not_found("dag run is not found")
+
+            res_dag_runs = []
+            for dag_run in dag_runs:
+                res_dag_runs.append(ResponseFormat.format_dag_run_state(dag_run))
+            session.close()
+            response_dict = {'dag_runs': res_dag_runs}
+            return ApiResponse.success(response_dict)
+        except Exception as e:
+            logging.error("Failed to list dag runs {}".format(e))
+            return ApiResponse.server_error("Failed to list dag runs for {}".format(dag_id))
 
 
     def dag_state(self):
