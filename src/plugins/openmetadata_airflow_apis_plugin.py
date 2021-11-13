@@ -2,6 +2,8 @@ __version__ = "0.11"
 
 import importlib
 import sys
+from typing import Optional, NamedTuple
+
 import traceback
 
 from airflow.models import DagBag, DagModel, DagRun, DAG
@@ -12,12 +14,15 @@ from airflow.www.app import csrf
 from airflow import settings
 from airflow.utils.state import State
 from airflow.utils import timezone
-from airflow.exceptions import TaskNotFound
+from airflow.exceptions import TaskNotFound, AirflowException
 from airflow.api.common.experimental.trigger_dag import trigger_dag
+
+from sqlalchemy.sql.functions import func
 
 from flask import Blueprint, request, jsonify, Response
 from flask_admin import BaseView as AdminBaseview, expose as admin_expose
 from flask_login.utils import _get_user
+from pendulum import DateTime
 
 import airflow
 import logging
@@ -46,6 +51,19 @@ dag_managed_operators = configuration.get('openmetadata_airflow_apis', 'DAG_MANA
 rbac_authentication_enabled = True
 store_serialized_dags = True
 
+class DataInterval(NamedTuple):
+    """A data interval for a DagRun to operate over.
+    Both ``start`` and ``end`` **MUST** be "aware", i.e. contain timezone
+    information.
+    """
+
+    start: DateTime
+    end: DateTime
+
+    @classmethod
+    def exact(cls, at: DateTime) -> "DagRunInfo":
+        """Represent an "interval" containing only an exact time."""
+        return cls(start=at, end=at)
 
 def import_path(path):
     module_name = os.path.basename(path).replace('-', '_')
@@ -294,7 +312,7 @@ class REST_API(get_baseview()):
                 dags.append({
                     "dag_id": dag_id,
                     "is_active": (not orm_dag.is_paused) if orm_dag is not None else False
-                    })
+                })
 
             return self.render_template("/rest_api_plugin/index.html",
                                         dags=dags,
@@ -432,7 +450,8 @@ class REST_API(get_baseview()):
         # Check if the file already exists.
         if os.path.isfile(dag_config_file_path) and not force:
             logging.warning("File to upload already exists")
-            return ApiResponse.bad_request("The file '" + dag_config_file_path + "' already exists on host '" + hostname)
+            return ApiResponse.bad_request(
+                "The file '" + dag_config_file_path + "' already exists on host '" + hostname)
 
         dag_id = dag_name
         logging.info("Saving file to '" + dag_config_file_path + "'")
@@ -513,7 +532,6 @@ class REST_API(get_baseview()):
                 "message": "Workflow {} has filed to trigger due to {}".format(dag_id, e)
             })
 
-
     @staticmethod
     def refresh_all_dags():
         """Custom Function for the refresh_all_dags API.
@@ -572,10 +590,10 @@ class REST_API(get_baseview()):
         """
         List dag runs
         """
+        logging.info("Running list_run")
+        dag_id = self.get_argument(request, 'dag_id')
+        logging.info("dag_id {}".format(dag_id))
         try:
-            logging.info("Running list_run")
-            dag_id = self.get_argument(request, 'dag_id')
-            logging.info("dag_id {}".format(dag_id))
             session = settings.Session()
             query = session.query(DagRun)
             dag_runs = query.filter(
@@ -589,12 +607,12 @@ class REST_API(get_baseview()):
             for dag_run in dag_runs:
                 res_dag_runs.append(ResponseFormat.format_dag_run_state(dag_run))
             session.close()
-            response_dict = {'dag_runs': res_dag_runs}
+            next_run = self.dag_next_execution(dag_id)
+            response_dict = {'dag_runs': res_dag_runs, 'next_run': next_run}
             return ApiResponse.success(response_dict)
         except Exception as e:
             logging.error("Failed to list dag runs {}".format(e))
             return ApiResponse.server_error("Failed to list dag runs for {}".format(dag_id))
-
 
     def dag_state(self):
         """Get dag_run from session according to dag_id and run_id,
@@ -907,6 +925,30 @@ class REST_API(get_baseview()):
         session.close()
 
         return ApiResponse.success()
+
+    def get_dag(self, dag_id: str) -> "DAG":
+        """Returns DAG of a given dag_id"""
+        dagbag = self.get_dagbag()
+        if dag_id not in dagbag.dags:
+            raise AirflowException(
+                'dag_id could not be found: {}. Either the dag did not exist or it failed to '
+                'parse.'.format(dag_id)
+            )
+        dag = dagbag.get_dag(dag_id)
+        return dag
+
+    def dag_next_execution(self, dag_id: str):
+        """
+        Returns the next execution datetime of a DAG at the command line.
+        2018-08-31 10:38:00
+        """
+        dag = self.get_dag(dag_id)
+
+        if dag.get_is_paused():
+            return "Paused"
+        next_run = dag.following_schedule(dag.latest_execution_date)
+        return str(next_run) if next_run is not None else "None"
+
 
 
 # Creating View to be used by Plugin
