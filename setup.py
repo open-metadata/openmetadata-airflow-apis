@@ -42,7 +42,7 @@ dev_requirements = {
 
 setup(
     name="openmetadata-airflow-managed-apis",
-    version="0.1.0",
+    version="0.1.3",
     url="https://open-metadata.org/",
     author="OpenMetadata Committers",
     license="Apache License 2.0",

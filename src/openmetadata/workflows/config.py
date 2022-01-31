@@ -6,7 +6,7 @@ from typing import IO, Any, List, Optional
 import io
 
 import yaml
-from expandvars import expandvars
+import os
 
 
 class ConfigurationMechanism(ABC):
@@ -54,7 +54,7 @@ def load_config_file(config_file: pathlib.Path) -> dict:
     with config_file.open() as raw_config_file:
         raw_config = raw_config_file.read()
 
-    expanded_config_file = expandvars(raw_config, nounset=True)
+    expanded_config_file = os.path.expandvars(raw_config)
     config_fp = io.StringIO(expanded_config_file)
     config = config_mech.load_config(config_fp)
 
