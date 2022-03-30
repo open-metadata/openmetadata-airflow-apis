@@ -4,25 +4,16 @@ import os
 from setuptools import find_namespace_packages, setup
 
 
-def get_version():
-    root = os.path.dirname(__file__)
-    changelog = os.path.join(root, "CHANGELOG")
-    with open(changelog) as f:
-        return f.readline().strip()
-
-
 def get_long_description():
     root = os.path.dirname(__file__)
     with open(os.path.join(root, "README.md")) as f:
         description = f.read()
-    description += "\n\nChangelog\n=========\n\n"
-    with open(os.path.join(root, "CHANGELOG")) as f:
-        description += f.read()
     return description
 
 
 base_requirements = {
-    "PyYAML~=6.0",
+    "openmetadata-ingestion-core==0.9.0",
+    "PyYAML<6.0",  # pycln requires < 6
     "pendulum~=2.1.2",
     "packaging~=21.2",
     "setuptools~=58.3.0",
@@ -33,11 +24,12 @@ base_requirements = {
 }
 
 dev_requirements = {
-    "black",
+    "black==21.12b0",
     "pytest",
     "pylint",
     "pytest-cov",
-    "tox"
+    "isort",
+    "pycln",
 }
 
 setup(
@@ -59,6 +51,9 @@ setup(
     },
     packages=find_namespace_packages(where="./src", exclude=["tests*"]),
     install_requires=list(base_requirements),
-    extras_requires=list(dev_requirements)
+    extras_require={
+        "base": list(base_requirements),
+        "dev": list(dev_requirements),
+    }
 )
 
