@@ -1,9 +1,9 @@
 """Module contains various utilities used by dag-factory"""
+import ast
 import importlib.util
 import os
 import re
 import sys
-import ast
 import types
 from datetime import date, datetime, timedelta
 from pathlib import Path

@@ -1,16 +1,15 @@
 import logging
-import os
 import pathlib
-from typing import Any, Dict, Optional, Union, List
+from typing import Any, Dict, List
 
 import yaml
 from airflow.models import DAG
 
 from openmetadata.generated.api.workflows.operations.workflow import WorkflowConfig
-from openmetadata.workflows.workflow_builder import WorkflowBuilder
 
 # these are params that cannot be a dag name
 from openmetadata.workflows.config import load_config_file
+from openmetadata.workflows.workflow_builder import WorkflowBuilder
 
 SYSTEM_PARAMS: List[str] = ["default", "task_groups"]
 logger = logging.getLogger(__name__)
@@ -22,9 +21,7 @@ class WorkflowFactory:
     :type config: dict
     """
 
-    def __init__(
-            self, workflow_config: WorkflowConfig
-    ) -> None:
+    def __init__(self, workflow_config: WorkflowConfig) -> None:
         self.dag = None
         self.workflow_config = workflow_config
 

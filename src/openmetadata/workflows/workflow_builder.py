@@ -1,28 +1,28 @@
 import logging
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Union
 
-import os
-from copy import deepcopy
-
-from airflow import DAG, configuration
-from airflow.models import Variable
+from airflow import DAG
+from airflow import __version__ as AIRFLOW_VERSION
+from airflow import configuration
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
-from airflow.models import BaseOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
+from airflow.models import BaseOperator, Variable
+from airflow.operators.python_operator import BranchPythonOperator, PythonOperator
 from airflow.sensors.http_sensor import HttpSensor
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils.module_loading import import_string
-from airflow import __version__ as AIRFLOW_VERSION
 
-from openmetadata.generated.api.workflows.operations.workflow import WorkflowConfig, Task
+from openmetadata.generated.api.workflows.operations.workflow import (
+    Task,
+    WorkflowConfig,
+)
 
 try:
-    from airflow.kubernetes.secret import Secret
     from airflow.kubernetes.pod import Port
-    from airflow.kubernetes.volume_mount import VolumeMount
-    from airflow.kubernetes.volume import Volume
     from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
+    from airflow.kubernetes.secret import Secret
+    from airflow.kubernetes.volume import Volume
+    from airflow.kubernetes.volume_mount import VolumeMount
 except ImportError:
     from airflow.contrib.kubernetes.secret import Secret
     from airflow.contrib.kubernetes.pod import Port
@@ -30,7 +30,7 @@ except ImportError:
     from airflow.contrib.kubernetes.volume import Volume
     from airflow.contrib.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
 
-from kubernetes.client.models import V1Pod, V1Container
+from kubernetes.client.models import V1Container, V1Pod
 from packaging import version
 
 from openmetadata.workflows import workflow_utils
@@ -56,9 +56,7 @@ class WorkflowBuilder:
     :param workflow_config:  configuration for the DAG
     """
 
-    def __init__(
-            self, workflow_config: WorkflowConfig
-    ) -> None:
+    def __init__(self, workflow_config: WorkflowConfig) -> None:
         self.dag_config = workflow_config
         self.dag_name: str = self.dag_config.name
 
@@ -95,7 +93,9 @@ class WorkflowBuilder:
 
         # Convert from 'end_date: Union[str, datetime, date]' to 'end_date: datetime'
         if self.dag_config.endDate is not None:
-            dag_params["default_args"]["end_date"]: datetime = workflow_utils.get_datetime(
+            dag_params["default_args"][
+                "end_date"
+            ]: datetime = workflow_utils.get_datetime(
                 date_value=self.dag_config.endDate,
                 timezone=self.dag_config.workflowTimezone,
             )
@@ -109,9 +109,7 @@ class WorkflowBuilder:
             if isinstance(self.dag_config.slaMissCallback, str):
                 dag_params["default_args"][
                     "sla_miss_callback"
-                ]: Callable = import_string(
-                    self.dag_config.slaMissCallback
-                )
+                ]: Callable = import_string(self.dag_config.slaMissCallback)
                 dag_params["sla_miss_callback"]: Callable = import_string(
                     self.dag_config.slaMissCallback
                 )
@@ -120,9 +118,7 @@ class WorkflowBuilder:
             if isinstance(self.dag_config.onSuccessCallback, str):
                 dag_params["default_args"][
                     "on_success_callback"
-                ]: Callable = import_string(
-                    self.dag_config.onSuccessCallback
-                )
+                ]: Callable = import_string(self.dag_config.onSuccessCallback)
                 dag_params["on_success_callback"]: Callable = import_string(
                     self.dag_config.onSuccessCallback
                 )
@@ -131,27 +127,37 @@ class WorkflowBuilder:
             if isinstance(self.dag_config.onFailureCallback, str):
                 dag_params["default_args"][
                     "on_failure_callback"
-                ]: Callable = import_string(
-                    self.dag_config.onFailureCallback
-                )
+                ]: Callable = import_string(self.dag_config.onFailureCallback)
                 dag_params["on_failure_callback"]: Callable = import_string(
                     self.dag_config.onFailureCallback
                 )
 
-        if self.dag_config.onSuccessCallbackName and self.dag_config.onSuccessCallbackFile:
-            dag_params["on_success_callback"]: Callable = workflow_utils.get_python_callable(
+        if (
+            self.dag_config.onSuccessCallbackName
+            and self.dag_config.onSuccessCallbackFile
+        ):
+            dag_params[
+                "on_success_callback"
+            ]: Callable = workflow_utils.get_python_callable(
                 self.dag_config.onSuccessCallbackName,
                 f'{dag_params["managed_operators_dir"]}/{self.dag_config.onSuccessCallbackFile}',
             )
 
-        if self.dag_config.onFailureCallbackName and self.dag_config.onFailureCallbackFile:
-            dag_params["on_failure_callback"]: Callable = workflow_utils.get_python_callable(
+        if (
+            self.dag_config.onFailureCallbackName
+            and self.dag_config.onFailureCallbackFile
+        ):
+            dag_params[
+                "on_failure_callback"
+            ]: Callable = workflow_utils.get_python_callable(
                 self.dag_config.onFailureCallbackName,
                 f'{dag_params["managed_operators_dir"]}/{self.dag_config.onFailureCallbackFile}',
             )
 
         try:
-            dag_params["default_args"]["start_date"]: datetime = workflow_utils.get_datetime(
+            dag_params["default_args"][
+                "start_date"
+            ]: datetime = workflow_utils.get_datetime(
                 date_value=self.dag_config.startDate,
                 timezone=self.dag_config.workflowTimezone,
             )
@@ -162,7 +168,9 @@ class WorkflowBuilder:
     # pylint: disable=too-many-branches
     # pylint: disable=too-many-statements
     @staticmethod
-    def make_task(operator: str, task_params: Dict[str, Any], dag_params: Dict[str, Any]) -> BaseOperator:
+    def make_task(
+        operator: str, task_params: Dict[str, Any], dag_params: Dict[str, Any]
+    ) -> BaseOperator:
         """
         Takes an operator and params and creates an instance of that operator.
         :returns: instance of operator object
@@ -175,14 +183,18 @@ class WorkflowBuilder:
         try:
             if operator_obj in [PythonOperator, BranchPythonOperator]:
                 if not task_params.get("python_callable_name") and not task_params.get(
-                        "python_callable_file"
+                    "python_callable_file"
                 ):
                     raise Exception(
                         "Failed to create task. PythonOperator and BranchPythonOperator requires \
                         `python_callable_name` and `python_callable_file` parameters."
                     )
-                logger.info(f'python callable {dag_params["managed_operators_dir"]}/{task_params["python_callable_file"]}')
-                task_params["python_callable"]: Callable = workflow_utils.get_python_callable(
+                logger.info(
+                    f'python callable {dag_params["managed_operators_dir"]}/{task_params["python_callable_file"]}'
+                )
+                task_params[
+                    "python_callable"
+                ]: Callable = workflow_utils.get_python_callable(
                     task_params["python_callable_name"],
                     f'{dag_params["managed_operators_dir"]}/{task_params["python_callable_file"]}',
                 )
@@ -199,39 +211,47 @@ class WorkflowBuilder:
             if operator_obj in [SqlSensor]:
                 # Success checks
                 if task_params.get("success_check_file") and task_params.get(
-                        "success_check_name"
+                    "success_check_name"
                 ):
-                    task_params["success"]: Callable = workflow_utils.get_python_callable(
+                    task_params[
+                        "success"
+                    ]: Callable = workflow_utils.get_python_callable(
                         task_params["success_check_name"],
                         f'{dag_params["managed_operators_dir"]}/{task_params["success_check_file"]}',
                     )
                     del task_params["success_check_name"]
                     del task_params["success_check_file"]
                 elif task_params.get("success_check_lambda"):
-                    task_params["success"]: Callable = workflow_utils.get_python_callable_lambda(
+                    task_params[
+                        "success"
+                    ]: Callable = workflow_utils.get_python_callable_lambda(
                         task_params["success_check_lambda"]
                     )
                     del task_params["success_check_lambda"]
                 # Failure checks
                 if task_params.get("failure_check_file") and task_params.get(
-                        "failure_check_name"
+                    "failure_check_name"
                 ):
-                    task_params["failure"]: Callable = workflow_utils.get_python_callable(
+                    task_params[
+                        "failure"
+                    ]: Callable = workflow_utils.get_python_callable(
                         task_params["failure_check_name"],
-                        f'{dag_params["managed_operators_dir"]}/{task_params["failure_check_file"]}'
+                        f'{dag_params["managed_operators_dir"]}/{task_params["failure_check_file"]}',
                     )
                     del task_params["failure_check_name"]
                     del task_params["failure_check_file"]
                 elif task_params.get("failure_check_lambda"):
-                    task_params["failure"]: Callable = workflow_utils.get_python_callable_lambda(
+                    task_params[
+                        "failure"
+                    ]: Callable = workflow_utils.get_python_callable_lambda(
                         task_params["failure_check_lambda"]
                     )
                     del task_params["failure_check_lambda"]
 
             if operator_obj in [HttpSensor]:
                 if not (
-                        task_params.get("response_check_name")
-                        and task_params.get("response_check_file")
+                    task_params.get("response_check_name")
+                    and task_params.get("response_check_file")
                 ) and not task_params.get("response_check_lambda"):
                     raise Exception(
                         "Failed to create task. HttpSensor requires \
@@ -239,9 +259,11 @@ class WorkflowBuilder:
                         or `response_check_lambda` parameter."
                     )
                 if task_params.get("response_check_file"):
-                    task_params["response_check"]: Callable = workflow_utils.get_python_callable(
+                    task_params[
+                        "response_check"
+                    ]: Callable = workflow_utils.get_python_callable(
                         task_params["response_check_name"],
-                        f'{dag_params["managed_operators_dir"]}/{task_params["response_check_file"]}'
+                        f'{dag_params["managed_operators_dir"]}/{task_params["response_check_file"]}',
                     )
                     # remove dag-factory specific parameters
                     # Airflow 2.0 doesn't allow these to be passed to operator
@@ -318,9 +340,11 @@ class WorkflowBuilder:
                 del task_params["execution_delta_secs"]
 
             if workflow_utils.check_dict_key(
-                    task_params, "execution_date_fn_name"
+                task_params, "execution_date_fn_name"
             ) and workflow_utils.check_dict_key(task_params, "execution_date_fn_file"):
-                task_params["execution_date_fn"]: Callable = workflow_utils.get_python_callable(
+                task_params[
+                    "execution_date_fn"
+                ]: Callable = workflow_utils.get_python_callable(
                     task_params["execution_date_fn_name"],
                     f'{dag_params["managed_operators_dir"]}/{task_params["execution_date_fn_file"]}',
                 )
@@ -329,7 +353,7 @@ class WorkflowBuilder:
 
             # on_execute_callback is an Airflow 2.0 feature
             if workflow_utils.check_dict_key(
-                    task_params, "on_execute_callback"
+                task_params, "on_execute_callback"
             ) and version.parse(AIRFLOW_VERSION) >= version.parse("2.0.0"):
                 task_params["on_execute_callback"]: Callable = import_string(
                     task_params["on_execute_callback"]
@@ -369,7 +393,7 @@ class WorkflowBuilder:
 
     @staticmethod
     def make_task_groups(
-            task_groups: Dict[str, Any], dag: DAG
+        task_groups: Dict[str, Any], dag: DAG
     ) -> Dict[str, "TaskGroup"]:
         """Takes a DAG and task group configurations. Creates TaskGroup instances.
 
@@ -393,10 +417,10 @@ class WorkflowBuilder:
 
     @staticmethod
     def set_dependencies(
-            tasks_config: List[Task],
-            operators_dict: Dict[str, BaseOperator],
-            task_groups_config: Dict[str, Dict[str, Any]],
-            task_groups_dict: Dict[str, "TaskGroup"],
+        tasks_config: List[Task],
+        operators_dict: Dict[str, BaseOperator],
+        task_groups_config: Dict[str, Dict[str, Any]],
+        task_groups_dict: Dict[str, "TaskGroup"],
     ):
         """Take the task configurations in YAML file and operator
         instances, then set the dependencies between tasks.

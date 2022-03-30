@@ -1,12 +1,11 @@
-import json
-import pathlib
-import re
-from abc import ABC, abstractmethod
-from typing import IO, Any, List, Optional
 import io
+import json
+import os
+import pathlib
+from abc import ABC, abstractmethod
+from typing import IO
 
 import yaml
-import os
 
 
 class ConfigurationMechanism(ABC):
