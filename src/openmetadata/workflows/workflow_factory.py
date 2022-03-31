@@ -1,11 +1,27 @@
+#  Copyright 2021 Collate
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#  http://www.apache.org/licenses/LICENSE-2.0
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+"""
+Module used to create a DAG
+based on incoming configs.
+
+Called in dag_runner.j2
+"""
 import logging
 import pathlib
 from typing import Any, Dict, List
 
-import yaml
 from airflow.models import DAG
-
-from openmetadata.generated.api.workflows.operations.workflow import WorkflowConfig
+from metadata.generated.schema.operations.pipelines.airflowPipeline import (
+    AirflowPipeline,
+)
 
 # these are params that cannot be a dag name
 from openmetadata.workflows.config import load_config_file
@@ -21,36 +37,37 @@ class WorkflowFactory:
     :type config: dict
     """
 
-    def __init__(self, workflow_config: WorkflowConfig) -> None:
+    def __init__(self, airflow_pipeline: AirflowPipeline) -> None:
         self.dag = None
-        self.workflow_config = workflow_config
+        self.airflow_pipeline = airflow_pipeline
 
     @classmethod
     def create(cls, config: str):
         config_file = pathlib.Path(config)
         workflow_config_dict = load_config_file(config_file)
-        workflow_config = WorkflowConfig(**workflow_config_dict)
+        workflow_config = AirflowPipeline(**workflow_config_dict)
         return cls(workflow_config)
 
     def build_dag(self) -> DAG:
         """Build Workflow using the configuration"""
 
-        workflow_builder: WorkflowBuilder = WorkflowBuilder(self.workflow_config)
+        workflow_builder: WorkflowBuilder = WorkflowBuilder(self.airflow_pipeline)
         try:
             workflow = workflow_builder.build()
         except Exception as err:
             raise Exception(
-                f"Failed to generate workflow {self.workflow_config.name}. verify config is correct"
+                f"Failed to generate workflow {self.airflow_pipeline.name}. verify config is correct"
             ) from err
         return workflow
 
-    def register_dag(self, dag: DAG, globals: Dict[str, Any]) -> None:
-        globals[dag.dag_id]: DAG = dag
+    @staticmethod
+    def register_dag(dag: DAG, globals_namespace: Dict[str, Any]) -> None:
+        globals_namespace[dag.dag_id]: DAG = dag
 
-    def generate_dag(self, globals: Dict[str, Any]) -> None:
+    def generate_dag(self, globals_namespace: Dict[str, Any]) -> None:
         dag = self.build_dag()
         self.dag = dag
-        self.register_dag(dag, globals)
+        self.register_dag(dag, globals_namespace)
         logger.info("registered the dag")
 
     def get_dag(self) -> DAG:

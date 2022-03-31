@@ -1,6 +1,7 @@
 # OpenMetadata Airflow Managed DAGS Api
 
-This is a plugin for Apache Airflow >= 1.10 and Airflow >=2.x that exposes REST APIs to deploy a workflow definition and manage DAGS and tasks.
+This is a plugin for Apache Airflow >= 1.10 and Airflow >=2.x that exposes REST APIs to deploy an
+OpenMetadata workflow definition and manage DAGS and tasks.
 
 
 ## Requirements
@@ -17,29 +18,29 @@ Add the following section to airflow.cfg
 [openmetadata_airflow_apis]
 dag_runner_template = {AIRFLOW_HOME}/dag_templates/dag_runner.j2
 dag_generated_configs = {AIRFLOW_HOME}/dag_generated_configs
-dag_managed_operators = {AIRFLOW_HOME}/dag_managed_operators
 ```
 substitute AIRFLOW_HOME with your airflow installation home
 
-
-
-
-## Deploy 
+## Deploy
 
 1. Download the latest release
-2. Create plugins folder in your scheduler and webserver if its not exist already
+2. Create plugins folder in your scheduler and webserver if it does not exist already
 3. cp -r src/plugins/* ${AIRFLOW_HOME}/plugins
 4. cp -r src/plugins/dag_templates {AIRFLOW_HOME}
 5. mkdir -p {AIRFLOW_HOME}/dag_generated_configs
 6. cp -r src/plugins/dag_managed_operators {AIRFLOW_HOME}
 7. (re)start the airflow webserver and scheduler
 
- ```
- airflow webserver
- airflow scheduler
- ```
- 
- 
+    ```
+    airflow webserver
+    airflow scheduler
+    ```
+
+## Validate
+
+You can check that the plugin is correctly loaded by going to `http://{AIRFLOW_HOST}:{AIRFLOW_PORT}/restapi`,
+or accessing the REST_API_PLUGIN view through the Admin dropdown.
+
 ## APIs
 
 #### Enable JWT Auth tokens
@@ -80,8 +81,7 @@ curl -X POST "http://localhost:8080/api/v1/security/refresh" -H 'Authorization: 
 }
 ```
 
-
-#### Enable API request with JWT
+#### Enable API requests with JWT
 ##### If the Authorization header is not added in the api request，response error:
 ```json
 {"msg":"Missing Authorization Header"}
@@ -99,14 +99,7 @@ Once you deploy the plugin and restart the webserver, you can start to use the R
 This web page will show the Endpoints supported and provide a form for you to test submitting to them.
 
 - [deploy_dag](#deploy_dag)
-- [refresh_all_dags](#refresh_all_dags)
 - [delete_dag](#delete_dag)
-- [dag_state](#dag_state)
-- [task_instance_detail](#task_instance_detail)
-- [restart_failed_task](#restart_failed_task)
-- [kill_running_tasks](#kill_running_tasks)
-- [run_task_instance](#run_task_instance)
-- [skip_task_instance](#skip_task_instance)
 
 ### ***<span id="deploy_dag">deploy_dag</span>***
 ##### Description:
@@ -191,28 +184,7 @@ curl -H  'Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE
 ```json
 {"message": "Workflow [test_ingestion_x_35] has been created", "status": "success"}
 ```
-### ***<span id="refresh_all_dags">refresh_all_dags</span>***
-##### Description:
-- Get all dags from dag_floder, refresh the dags to the session.
-##### Endpoint:
-```text
-http://{AIRFLOW_HOST}:{AIRFLOW_PORT}/admin/rest_api/api?api=refresh_all_dags
-```
-##### Method:
-- GET
-##### GET request Arguments:
-- None
-##### Examples:
-```bash
-curl -X GET http://localhost:8080/admin/rest_api/api?api=refresh_all_dags
-```
-##### response:
-```json
-{
-  "message": "All DAGs are now up to date",
-  "status": "success"
-}
-```
+
 ### ***<span id="delete_dag">delete_dag</span>***
 ##### Description:
 - Delete dag based on dag_id.
@@ -235,155 +207,3 @@ curl -X GET http://localhost:8080/admin/rest_api/api?api=delete_dag&dag_id=dag_t
   "status": "success"
 }
 ```
-### ***<span id="dag_state">dag_state</span>***
-##### Description:
-- Get the status of a dag run.
-##### Endpoint:
-```text
-http://{AIRFLOW_HOST}:{AIRFLOW_PORT}/admin/rest_api/api?api=dag_state&dag_id=value&run_id=value
-```
-##### Method:
-- GET
-##### GET request Arguments:
-- dag_id - string - The id of dag.
-- run_id - string - The id of the dagRun.
-##### Examples:
-```bash
-curl -X GET http://localhost:8080/admin/rest_api/api?api=dag_state&dag_id=dag_test&run_id=manual__2020-10-28T16%3A15%3A19.427214%2B00%3A00
-```
-##### response:
-```json
-{
-  "state": "success",
-  "startDate": "2020-10-28T16:15:19.436693+0000",
-  "endDate": "2020-10-28T16:21:36.245696+0000",
-  "status": "success"
-}
-```
-### ***<span id="task_instance_detail">task_instance_detail</span>***
-##### Description:
-- Get the detail info of a task instance.
-##### Endpoint:
-```text
-http://{AIRFLOW_HOST}:{AIRFLOW_PORT}/admin/rest_api/api?api=task_instance_detail&dag_id=value&run_id=value&task_id=value
-```
-##### Method:
-- GET
-##### GET request Arguments:
-- dag_id - string - The id of dag.
-- run_id - string - The id of the dagRun.
-- task_id - string - The id of the task.
-##### Examples:
-```bash
-curl -X GET http://localhost:8080/admin/rest_api/api?api=task_instance_detail&dag_id=dag_test&run_id=manual__2020-10-28T16%3A31%3A17.247035%2B00%3A00&task_id=task_test
-```
-##### response:
-```json
-{
-  "taskId": "task_test",
-  "dagId": "dag_test",
-  "state": "success",
-  "tryNumber": null,
-  "maxTries": null,
-  "startDate": "2020-10-28T16:31:57.882329+0000",
-  "endDate": "2020-10-28T16:31:57.882329+0000",
-  "duration": null,
-  "status": "success"
-}
-```
-### ***<span id="restart_failed_task">restart_failed_task</span>***
-##### Description:
-- Restart failed tasks with downstream.
-##### Endpoint:
-```text
-http://{AIRFLOW_HOST}:{AIRFLOW_PORT}/admin/rest_api/api?api=restart_failed_task&dag_id=value&run_id=value
-```
-##### Method:
-- GET
-##### GET request Arguments:
-- dag_id - string - The id of dag.
-- run_id - string - The id of the dagRun.
-##### Examples:
-```bash
-curl -X GET http://localhost:8080/admin/rest_api/api?api=restart_failed_task&dag_id=dag_test&run_id=manual__2020-10-28T16%3A31%3A17.247035%2B00%3A00
-```
-##### response:
-```json
-{
-  "failed_task_count": 2,
-  "clear_task_count": 6,
-  "status": "success"
-}
-```
-### ***<span id="kill_running_tasks">kill_running_tasks</span>***
-##### Description:
-- Kill running tasks that status in ['none', 'running'].
-##### Endpoint:
-```text
-http://{AIRFLOW_HOST}:{AIRFLOW_PORT}/admin/rest_api/api?api=kill_running_tasks&dag_id=value&run_id=value&task_id=value
-```
-##### Method:
-- GET
-##### GET request Arguments:
-- dag_id - string - The id of dag.
-- run_id - string - The id of the dagRun.
-- task_id - string - If task_id is none, kill all tasks, else kill one task.
-##### Examples:
-```bash
-curl -X GET http://localhost:8080/admin/rest_api/api?api=kill_running_tasks&dag_id=dag_test&run_id=manual__2020-10-28T16%3A31%3A17.247035%2B00%3A00&task_id=task_test
-```
-##### response:
-```json
-{
-  "status": "success"
-}
-```
-### ***<span id="run_task_instance">run_task_instance</span>***
-##### Description:
-- Create dagRun, and run some tasks, other task skip.
-##### Endpoint:
-```text
-http://{AIRFLOW_HOST}:{AIRFLOW_PORT}/admin/rest_api/api?api=run_task_instance
-```
-##### Method:
-- POST
-##### POST request Arguments:
-- dag_id - string - The id of dag.
-- run_id - string - The id of the dagRun.
-- tasks - string - The id of the tasks, Multiple tasks are split by comma.
-- conf - string - Conf of creating dagRun.
-##### Examples:
-```bash
-curl -X POST -F 'dag_id=dag_test' -F 'run_id=manual__2020-10-28T17:36:28.838356+00:00' -F 'tasks=task_test_3,task_test_4,task_test_6' http://localhost:8080/admin/rest_api/api?api=run_task_instance
-```
-##### response:
-```json
-{
-  "execution_date": "2020-10-28T17:39:14.941060+0000",
-  "status": "success"
-}
-```
-### ***<span id="skip_task_instance">skip_task_instance</span>***
-##### Description:
-- Skip one task instance and downstream task.
-##### Endpoint:
-```text
-http://{AIRFLOW_HOST}:{AIRFLOW_PORT}/admin/rest_api/api?api=skip_task_instance&dag_id=value&run_id=value&task_id=value
-```
-##### Method:
-- GET
-##### GET request Arguments:
-- dag_id - string - The id of dag.
-- run_id - string - The id of the dagRun.
-- task_id - string - The id of the task.
-##### Examples:
-```bash
-curl -X GET http://localhost:8080/admin/rest_api/api?api=skip_task_instance&dag_id=dag_test&run_id=manual__2020-10-28T17%3A43%3A10.053716%2B00%3A00&task_id=task_test_2
-```
-##### response:
-```json
-{
-  "status": "success"
-}
-```
-
