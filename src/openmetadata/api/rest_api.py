@@ -39,7 +39,7 @@ from openmetadata.api.response import ApiResponse
 from openmetadata.api.utils import jwt_token_secure
 
 
-class RestApi(AppBuilderBaseView):
+class REST_API(AppBuilderBaseView):
     """API View which extends either flask AppBuilderBaseView or flask AdminBaseView"""
 
     # Get the DagBag which has a list of all the current Dags
