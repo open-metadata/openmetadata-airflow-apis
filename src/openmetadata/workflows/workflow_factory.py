@@ -16,7 +16,7 @@ Called in dag_runner.j2
 """
 import logging
 import pathlib
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from airflow.models import DAG
 from metadata.generated.schema.operations.pipelines.airflowPipeline import (
@@ -27,7 +27,6 @@ from metadata.generated.schema.operations.pipelines.airflowPipeline import (
 from openmetadata.workflows.config import load_config_file
 from openmetadata.workflows.workflow_builder import WorkflowBuilder
 
-SYSTEM_PARAMS: List[str] = ["default", "task_groups"]
 logger = logging.getLogger(__name__)
 
 

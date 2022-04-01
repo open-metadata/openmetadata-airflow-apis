@@ -22,13 +22,13 @@ from metadata.generated.schema.operations.pipelines.airflowPipeline import (
     AirflowPipeline,
 )
 
-from openmetadata.api.response import ApiResponse
-from openmetadata.api.rest_api import (
+from openmetadata.api.config import (
     AIRFLOW_DAGS_FOLDER,
     DAG_GENERATED_CONFIGS,
     DAG_RUNNER_TEMPLATE,
     HOSTNAME,
 )
+from openmetadata.api.response import ApiResponse
 from openmetadata.api.utils import import_path
 
 

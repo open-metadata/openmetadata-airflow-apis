@@ -13,6 +13,16 @@ Metadata DAG common functions
 """
 from typing import Any, Dict
 
+from airflow import DAG
+
+try:
+    from airflow.operators.python import PythonOperator
+except ModuleNotFoundError:
+    from airflow.operators.python_operator import PythonOperator
+
+from metadata.generated.schema.operations.pipelines.airflowPipeline import (
+    AirflowPipeline,
+)
 from metadata.ingestion.api.workflow import Workflow
 
 
@@ -30,3 +40,28 @@ def metadata_ingestion_workflow(workflow_config: Dict[str, Any]):
     workflow.raise_from_status()
     workflow.print_status()
     workflow.stop()
+
+
+def build_ingestion_dag(
+    task_name: str, airflow_pipeline: AirflowPipeline, workflow_config: Dict[str, Any]
+) -> DAG:
+    """
+    Build a simple metadata workflow DAG
+    """
+
+    with DAG(
+        dag_id=airflow_pipeline.name,
+        default_args=...,  # prepare common default
+        description=airflow_pipeline.description,
+        start_date=...,  # pick it up from airflow_pipeline and make sure it is properly in UTC
+        is_paused_upon_creation=airflow_pipeline.airflowConfig.pausePipeline,
+        catchup=airflow_pipeline.airflowConfig.pipelineCatchup or False,
+    ) as dag:
+
+        PythonOperator(
+            task_id=task_name,
+            python_callable=metadata_ingestion_workflow,
+            op_kwargs={"workflow_config": workflow_config},
+        )
+
+        return dag

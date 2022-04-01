@@ -13,9 +13,7 @@ Airflow REST API definition
 """
 
 import logging
-import socket
 
-import airflow
 from airflow import configuration, settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagModel
@@ -29,29 +27,16 @@ from metadata.generated.schema.operations.pipelines.airflowPipeline import (
     AirflowPipeline,
 )
 
-from openmetadata import __version__
 from openmetadata.airflow.deploy import DagDeployer
 from openmetadata.api.apis_metadata import APIS_METADATA, get_metadata_api
+from openmetadata.api.config import (
+    AIRFLOW_VERSION,
+    AIRFLOW_WEBSERVER_BASE_URL,
+    REST_API_ENDPOINT,
+    REST_API_PLUGIN_VERSION,
+)
 from openmetadata.api.response import ApiResponse
 from openmetadata.api.utils import jwt_token_secure
-
-REST_API_ENDPOINT = "/admin/rest_api/api"
-
-# Getting Versions and Global variables
-HOSTNAME = socket.gethostname()
-AIRFLOW_VERSION = airflow.__version__
-REST_API_PLUGIN_VERSION = __version__
-
-# Getting configurations from airflow.cfg file
-AIRFLOW_WEBSERVER_BASE_URL = configuration.get("webserver", "BASE_URL")
-AIRFLOW_DAGS_FOLDER = configuration.get("core", "DAGS_FOLDER")
-DAG_RUNNER_TEMPLATE = configuration.get(
-    "openmetadata_airflow_apis", "DAG_RUNNER_TEMPLATE"
-)
-# Path to store the JSON configurations we receive via REST
-DAG_GENERATED_CONFIGS = configuration.get(
-    "openmetadata_airflow_apis", "DAG_GENERATED_CONFIGS"
-)
 
 
 class RestApi(AppBuilderBaseView):
@@ -127,6 +112,8 @@ class RestApi(AppBuilderBaseView):
             return self.deploy_dag()
         if api == "trigger_dag":
             return self.trigger_dag()
+
+        # TODO DELETE, STATUS (pick it up from airflow directly), LOG (just link v1), ENABLE DAG, DISABLE DAG (play pause)
 
         raise ValueError(
             f"Invalid api param {api}. Expected deploy_dag or trigger_dag."

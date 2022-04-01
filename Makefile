@@ -33,3 +33,8 @@ py_format_check:  ## Check if Python sources are correctly formatted
 	pycln src/ --diff --extend-exclude src/openmetadata/generated
 	isort --check-only src/ --skip src/openmetadata/generated --profile black --multi-line 3
 	black --check --diff src/ --extend-exclude src/openmetadata/generated
+
+.PHONY: test_up
+test_up:  # Prepares a docker to test the endpoints
+	docker build -t airflow-rest .
+	docker run -p 8080:8080 --network=ometa_network --name airflow-rest airflow-rest

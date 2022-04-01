@@ -49,7 +49,7 @@ Plugin enables JWT Token based authentication for Airflow versions 1.10.4 or hig
 ##### Generating the JWT access token
 
 ```bash
-curl -XPOST http://{AIRFLOW_HOST}:{AIRFLOW_PORT}/api/v1/security/login -H "Content-Type: application/json" -d '{"username":"username", "password":"password", "refresh":true, "provider": "db"}'
+curl -XPOST http://localhost:8080/api/v1/security/login -H "Content-Type: application/json" -d '{"username":"admin", "password":"admin", "refresh":true, "provider": "db"}'
 ```
 ##### Examples:
 

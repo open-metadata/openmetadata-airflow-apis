@@ -12,12 +12,11 @@
 Metadata DAG function builder
 """
 
-import logging
 from typing import Any, Dict
 
 from airflow import DAG
 
-from openmetadata.workflows.types.common import metadata_ingestion_workflow
+from openmetadata.workflows.types.common import build_ingestion_dag
 
 try:
     from airflow.operators.python import PythonOperator
@@ -40,22 +39,11 @@ def build_usage_dag(airflow_pipeline: AirflowPipeline) -> DAG:
     """
     Build a simple metadata workflow DAG
     """
-    logging.info(f"Building metadata dag {airflow_pipeline.name}")
+    workflow_config = build_usage_workflow_config(airflow_pipeline)
+    dag = build_ingestion_dag(
+        task_name="usage_task",
+        airflow_pipeline=airflow_pipeline,
+        workflow_config=workflow_config,
+    )
 
-    with DAG(
-        dag_id=airflow_pipeline.name,
-        default_args=...,  # prepare common default
-        description=airflow_pipeline.description,
-        start_date=...,  # pick it up from airflow_pipeline and make sure it is properly in UTC
-        is_paused_upon_creation=airflow_pipeline.airflowConfig.pausePipeline,
-        catchup=airflow_pipeline.airflowConfig.pipelineCatchup or False,
-    ) as dag:
-        workflow_config = build_usage_workflow_config(airflow_pipeline)
-
-        PythonOperator(
-            task_id="metadata_usage",
-            python_callable=metadata_ingestion_workflow,
-            op_kwargs={"workflow_config": workflow_config},
-        )
-
-        return dag
+    return dag
