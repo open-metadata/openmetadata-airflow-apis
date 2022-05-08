@@ -1,5 +1,7 @@
 # OpenMetadata Airflow Managed DAGS Api
 
+This repo is deprecated. You can find new updates in the main [OpenMetadata repo](https://github.com/open-metadata/OpenMetadata/tree/main/openmetadata-airflow-apis).
+
 This is a plugin for Apache Airflow >= 1.10 and Airflow >=2.x that exposes REST APIs to deploy a workflow definition and manage DAGS and tasks.
 
 
